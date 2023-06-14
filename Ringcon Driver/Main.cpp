@@ -102,8 +102,8 @@ const auto retval = vigem_connect(client);
 PVIGEM_TARGET pad1 = 0;
 PVIGEM_TARGET pad2 = 0;
 XUSB_REPORT report;
-WORD remappedbtnsr=0;
-WORD remappedbtnsl=0;
+WORD remappedbtnsr = 0;
+WORD remappedbtnsl = 0;
 BYTE RightTrigger = 0;
 BYTE LeftTrigger = 0;
 int MaxStick = 32767;
@@ -125,6 +125,8 @@ struct Settings {
 
 	bool reverseX = false;// reverses joystick x (both sticks)
 	bool reverseY = false;// reverses joystick y (both sticks)
+	bool invertGyroY = false; //inverts the gyro, so that rotating towards self is up
+
 
 	bool usingGrip = false;
 	bool usingBluetooth = true;
@@ -186,6 +188,8 @@ struct Settings {
 	std::string controllerState = "";
 	// Use Ringcon with full set of buttons, left handed:
 	bool RingconToAnalog = false;
+
+
 
 	// poll options:
 
@@ -425,11 +429,11 @@ void handle_input(Joycon* jc, uint8_t* packet, int len) {
 			if (Ringcon >= 100) {
 				Ringcon = Ringcon - 255;
 			}
-			
+
 			if (Ringcon != prevRingcon) {
 				printf("%i\n", Ringcon);
 			}
-			
+
 			if (settings.RingconFullRH) { //The sensor readings change if it is being held sideways
 				if (Ringcon == 0x0A || Ringcon == 0x09 || Ringcon == 0x08 || Ringcon == 0x07) { //Deadzone
 					ringconcounter = 0;
@@ -702,7 +706,7 @@ void handle_input(Joycon* jc, uint8_t* packet, int len) {
 }
 
 
-void updateVigEmDevice2(Joycon* jc) { 
+void updateVigEmDevice2(Joycon* jc) {
 
 	UINT DevID;
 
@@ -719,7 +723,7 @@ void updateVigEmDevice2(Joycon* jc) {
 		sThumbLX = MaxStick * (jc->stick.CalX);
 		sThumbLY = MaxStick * (jc->stick.CalY);
 	}
-	if (jc->left_right== 2) {
+	if (jc->left_right == 2) {
 		if (settings.RingconFullRH) {
 			sThumbRX = -MaxStick * (jc->stick.CalX);
 			sThumbRY = -MaxStick * (jc->stick.CalY);
@@ -786,6 +790,13 @@ void updateVigEmDevice2(Joycon* jc) {
 		}
 
 		float pitchDegreesGyro = -jc->gyro.pitch * gyroCoeff;
+
+		//switch if invert is on
+		if (settings.invertGyroY)
+		{
+			pitchDegreesGyro = pitchDegreesGyro * -1;
+		}
+
 		float pitch = 0;
 		float pitchmult = 0;
 
@@ -1034,7 +1045,7 @@ void updateVigEmDevice2(Joycon* jc) {
 	jc->btns.plus = (jc->buttons2 & (1 << 9)) ? 1 : 0;
 	jc->btns.stick_button2 = (jc->buttons2 & (1 << 10)) ? 1 : 0;
 	jc->btns.home = (jc->buttons2 & (1 << 12)) ? 1 : 0;
-	
+
 	XINPUT_GAMEPAD_DPAD_UP 	0x0001
 	XINPUT_GAMEPAD_DPAD_DOWN 	0x0002
 	XINPUT_GAMEPAD_DPAD_LEFT 	0x0004
@@ -1050,7 +1061,7 @@ void updateVigEmDevice2(Joycon* jc) {
 	XINPUT_GAMEPAD_X 	0x4000
 	XINPUT_GAMEPAD_Y	0x8000*/
 
-	WORD remappedbtns = 0; 
+	WORD remappedbtns = 0;
 	if (!settings.combineJoyCons) {
 		if (jc->btns.left || jc->btns.a) {
 			remappedbtns += XINPUT_GAMEPAD_A;
@@ -1077,7 +1088,7 @@ void updateVigEmDevice2(Joycon* jc) {
 			if (jc->btns.up) {
 				remappedbtnsl += XINPUT_GAMEPAD_DPAD_UP;
 			}
-			if (jc->btns.down) { 
+			if (jc->btns.down) {
 				remappedbtnsl += XINPUT_GAMEPAD_DPAD_DOWN;
 			}
 			if (jc->btns.left) {
@@ -1226,6 +1237,7 @@ void parseSettings2() {
 
 	settings.reverseX = (bool)stoi(cfg["reverseX"]);
 	settings.reverseY = (bool)stoi(cfg["reverseY"]);
+	settings.invertGyroY = (bool)stoi(cfg["invertGyroY"]); //added this
 
 	settings.preferLeftJoyCon = (bool)stoi(cfg["preferLeftJoyCon"]);
 	settings.quickToggleGyro = (bool)stoi(cfg["quickToggleGyro"]);
@@ -1294,7 +1306,7 @@ void pollLoop() {
 
 	accurateSleep(settings.timeToSleepMS);
 
-	
+
 	if (settings.restart) {
 		settings.restart = false;
 		start();
@@ -1583,7 +1595,7 @@ init_start:
 			Sleep(50 / spd2);
 			joycon.rumble(mk_odd(B4), 1); Sleep(200 / spd); joycon.rumble(1, 3);	// B2
 
-																					// new:
+			// new:
 
 			Sleep(500 / spd2);
 
@@ -1627,7 +1639,7 @@ init_start:
 			joycon.rumble(mk_odd(E4), 1); Sleep(200 / spd); joycon.rumble(1, 3);	// E2
 
 
-																					// three notes:
+			// three notes:
 			Sleep(200 / spd2);
 			joycon.rumble(mk_odd(C5), 1); Sleep(200 / spd); joycon.rumble(1, 3);	// C3
 			Sleep(200 / spd2);
@@ -1722,9 +1734,9 @@ init_start:
 			Sleep(100 / spd2);
 			joycon.rumble(mk_odd(E4), 1); Sleep(200 / spd); joycon.rumble(1, 3);	// E2
 
-																					// 30 second mark
+			// 30 second mark
 
-																					// three notes:
+			// three notes:
 
 			Sleep(300 / spd2);
 			joycon.rumble(mk_odd(C5), 1); Sleep(200 / spd); joycon.rumble(1, 3);	// C3
